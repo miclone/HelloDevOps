@@ -19,4 +19,10 @@ public class CalculatorTests
     {
         Assert.Equal(expected, Calculator.Subtract(a, b));
     }
+
+    [Fact]
+    public void Multiply_TwoNumbers_ReturnsProduct()
+    {
+        Assert.Equal(12, Calculator.Multiply(3, 4));
+    }
 }

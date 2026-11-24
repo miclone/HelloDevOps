@@ -14,4 +14,7 @@ app.MapGet("/add/{a:int}/{b:int}", (int a, int b) =>
 app.MapGet("/subtract/{a:int}/{b:int}", (int a, int b) =>
     Results.Ok(new { a, b, result = Calculator.Subtract(a, b) }));
 
+app.MapGet("/multiply/{a:int}/{b:int}", (int a, int b) =>
+    Results.Ok(new { a, b, result = Calculator.Multiply(a, b) }));
+
 app.Run();
