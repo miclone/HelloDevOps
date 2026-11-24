@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up .NET 11
         uses: actions/setup-dotnet@v5
@@ -60,7 +60,7 @@ jobs:
       packages: write    # needed to push to GitHub Container Registry (ghcr.io)
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build image
         run: docker build -t hellodevops:ci .
