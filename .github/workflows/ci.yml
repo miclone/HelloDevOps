@@ -1,0 +1,96 @@
+name: CI
+
+# WHEN does this pipeline run?
+on:
+  pull_request:          # every PR targeting main -> proves the change is safe BEFORE merge
+    branches: [ main ]
+  push:
+    branches: [ main ]   # after merge -> build & publish the "latest" image
+    tags: [ 'v*' ]       # git tag v1.0.0 -> publish a versioned image
+  workflow_dispatch:     # adds a "Run workflow" button in the Actions tab
+
+# Least privilege: jobs get read-only access unless they ask for more.
+permissions:
+  contents: read
+
+# If you push again to the same branch/PR, cancel the older, now-useless run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # ---------------------------------------------------------------
+  # Job 1: CI - restore, build, test. The ruleset requires this job.
+  # ---------------------------------------------------------------
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up .NET 11
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '11.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release --verbosity normal
+
+  # ---------------------------------------------------------------
+  # Job 2: Container - build image, smoke-test it, push on main/tags.
+  # Only runs if build-and-test passed (needs:).
+  # ---------------------------------------------------------------
+  docker:
+    name: docker
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write    # needed to push to GitHub Container Registry (ghcr.io)
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build -t hellodevops:ci .
+
+      - name: Smoke test the container
+        run: |
+          docker run -d --name app -p 8080:8080 hellodevops:ci
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8080/health; then
+              echo ""; echo "Container is healthy"; exit 0
+            fi
+            sleep 1
+          done
+          echo "Container did not become healthy"; docker logs app; exit 1
+
+      # PRs only build + test the image. Real publishing happens after merge.
+      - name: Push to GitHub Container Registry
+        if: github.event_name == 'push'
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"     # registry names must be lowercase
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAGS="${GITHUB_REF_NAME#v}"              # v1.2.0 -> 1.2.0
+          else
+            TAGS="latest sha-${GITHUB_SHA::7}"       # main -> latest + commit sha
+          fi
+
+          for TAG in $TAGS; do
+            docker tag hellodevops:ci "$IMAGE:$TAG"
+            docker push "$IMAGE:$TAG"
+            echo "Pushed $IMAGE:$TAG"
+          done

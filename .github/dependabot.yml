@@ -1,0 +1,18 @@
+# Dependabot opens PRs automatically when packages or actions have updates.
+# Those PRs go through the same CI + ruleset as your own work.
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

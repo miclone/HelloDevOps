@@ -1,0 +1,3 @@
+# Normalise line endings so Windows (CRLF) and Linux (LF) don't fight in diffs.
+* text=auto
+*.sh text eol=lf
